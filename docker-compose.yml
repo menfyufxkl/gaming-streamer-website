@@ -1,0 +1,193 @@
+version: '3.8'
+
+services:
+  # 前端React应用
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gaming-streamer-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:5000/api/v1
+      - NEXT_PUBLIC_SITE_URL=http://localhost:3000
+    volumes:
+      - ./public:/app/public
+      - uploads_data:/app/public/uploads
+    depends_on:
+      - backend
+      - mongo
+      - redis
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # 后端API服务
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: gaming-streamer-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - MONGODB_URI=mongodb://mongo:27017/gaming-streamer
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN}
+      - JWT_COOKIE_EXPIRES_IN=${JWT_COOKIE_EXPIRES_IN}
+      - MAX_FILE_SIZE=${MAX_FILE_SIZE}
+      - UPLOAD_DIR=/app/uploads
+      - ALLOWED_ORIGINS=http://localhost:3000,${SITE_URL}
+      - ALIST_HOST=${ALIST_HOST}
+      - ALIST_API_KEY=${ALIST_API_KEY}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+    volumes:
+      - uploads_data:/app/uploads
+      - ./server/logs:/app/logs
+    depends_on:
+      - mongo
+      - redis
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # MongoDB数据库
+  mongo:
+    image: mongo:7
+    container_name: gaming-streamer-mongo
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_INITDB_DATABASE=gaming-streamer
+    volumes:
+      - mongo_data:/data/db
+      - ./mongo-init:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # Redis缓存
+  redis:
+    image: redis:7-alpine
+    container_name: gaming-streamer-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # AList网盘聚合播放器
+  alist:
+    image: xhofe/alist:beta
+    container_name: gaming-streamer-alist
+    ports:
+      - "5244:5244"
+    environment:
+      - PUID=0
+      - PGID=0
+      - UMASK=022
+    volumes:
+      - alist_data:/opt/alist/data
+      - uploads_data:/srv
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # Nginx反向代理
+  nginx:
+    image: nginx:alpine
+    container_name: gaming-streamer-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - uploads_data:/var/www/uploads:ro
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      - frontend
+      - backend
+      - alist
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # 监控服务 (可选)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: gaming-streamer-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  # Grafana仪表板 (可选)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: gaming-streamer-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - app-network
+
+volumes:
+  # 数据库存储
+  mongo_data:
+    driver: local
+  redis_data:
+    driver: local
+  alist_data:
+    driver: local
+  
+  # 文件存储
+  uploads_data:
+    driver: local
+  
+  # 监控存储
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
