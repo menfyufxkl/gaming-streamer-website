@@ -1,0 +1,71 @@
+{
+  "name": "gaming-streamer-website",
+  "version": "1.0.0",
+  "description": "专业的游戏主播个人网站，支持内容管理、视频播放、粉丝互动",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "server": "cd server && npm start",
+    "server-dev": "cd server && npm run dev",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "deploy": "npm run build && npm run docker:build && npm run docker:up"
+  },
+  "dependencies": {
+    "next": "14.2.15",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "typescript": "^5.6.2",
+    "@types/node": "^20.16.10",
+    "@types/react": "^18.3.8",
+    "@types/react-dom": "^18.3.0",
+    "tailwindcss": "^3.4.12",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "framer-motion": "^11.5.4",
+    "lucide-react": "^0.447.0",
+    "aplayer": "^1.10.1",
+    "react-markdown": "^9.0.1",
+    "remark-gfm": "^4.0.0",
+    "prism-react-renderer": "^2.4.0",
+    "react-hot-toast": "^2.4.1",
+    "react-hook-form": "^7.53.0",
+    "zod": "^3.23.8",
+    "@hookform/resolvers": "^3.9.0",
+    "clsx": "^2.1.1",
+    "class-variance-authority": "^0.7.0",
+    "tailwind-merge": "^2.5.2"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.1",
+    "eslint-config-next": "14.2.15",
+    "@types/aframe": "^1.5.5",
+    "postcss": "^8.4.47",
+    "prettier": "^3.3.3",
+    "prettier-plugin-tailwindcss": "^0.6.8"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/gaming-streamer-website.git"
+  },
+  "keywords": [
+    "gaming",
+    "streamer",
+    "website",
+    "nextjs",
+    "react",
+    "typescript",
+    "tailwindcss"
+  ],
+  "author": "MiniMax Agent",
+  "license": "MIT"
+}
